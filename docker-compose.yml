@@ -1,0 +1,55 @@
+name: irctc-backend
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - irctc-network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "8081:80"
+    depends_on:
+      - postgres
+    networks:
+      - irctc-network
+
+  redis:
+    image: redis/redis-stack:6.2.6-v19
+    container_name: redis
+    restart: always
+    environment:
+      REDIS_ARGS: "--requirepass ${REDIS_PASSWORD}"
+    ports:
+      # left side local port, right side container port
+      # Redis default port is 6379, Redis Stack UI is 8001
+      - "6379:6379" 
+      - "8001:8001"
+    volumes:
+      - redis-data:/data
+    networks:
+      - irctc-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  irctc-network:
+    driver: bridge
