@@ -1,6 +1,6 @@
 import {AppError} from '../utils/error.js';
-import {config} from '../config/config.js';
-import logger from '../config/logger.config.js';
+import {config} from '../config/index.js';
+import logger from '../config/logger.js';
 const errorHandler = (err, req, res, next) => {
     if(err instanceof AppError){
         return res.status(err.statusCode).json({
@@ -29,3 +29,5 @@ const errorHandler = (err, req, res, next) => {
         message: "Internal Server Error"
     })
 }
+
+export default errorHandler;

@@ -1,17 +1,24 @@
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { config } from './index.js';
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+import { config } from "./index.js";
+import dotenv from "dotenv";
+dotenv.config();
 
-const connectionString = config.DATABASE_URL;
+const connectionString = process.env.DATABASE_URL;
 
 const globalForPrisma = globalThis;
 
 if (!globalForPrisma.prisma) {
-  const adapter = new PrismaPg({ connectionString });
+  const pool = new Pool({
+    connectionString,
+  });
+
+  const adapter = new PrismaPg(pool);
 
   globalForPrisma.prisma = new PrismaClient({
     adapter,
-    log: ['error', 'warn'],
+    log: ["error", "warn"],
   });
 }
 
