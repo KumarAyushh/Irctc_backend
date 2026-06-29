@@ -43,3 +43,33 @@ export const sendOtpEmail = async (email, otp) => {
 
   await sgMail.send(msg);
 };
+
+export const verifyOtpEmail = async (meta) => {
+  const msg = {
+    to: meta.email,
+    from: process.env.SENDGRID_FROM_EMAIL, // Verified sender in SendGrid
+    subject: "Email Verified Successfully",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px;">
+        <h2 style="color: #16a34a;">✅ Email Verified</h2>
+
+        <p>Hello,</p>
+
+        <p>Your email address has been <strong>successfully verified</strong>.</p>
+
+        <p>You can now continue using all the features of your IRCTC account.</p>
+
+        <br />
+
+        <p>If you did not perform this verification, please contact our support team immediately.</p>
+
+        <br />
+
+        <p>Regards,</p>
+        <p><strong>IRCTC Team</strong></p>
+      </div>
+    `,
+  };
+
+  await sgMail.send(msg);
+};

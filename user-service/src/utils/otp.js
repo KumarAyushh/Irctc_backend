@@ -1,4 +1,4 @@
-import {TooManyRequestsError} from "./error.js";
+import {TooManyRequestsError, BadRequestError} from "./error.js";
 import otpGenerator from "otp-generator";
 import { redis } from "../config/redis.js";
 import { config } from "../config/index.js";
@@ -11,6 +11,8 @@ const HMAC_SECRET = config.OTP_HMAC_SECRET
 
 // OTP expiration time in seconds (default: 5 minutes)
 const OTP_TTL = parseInt(config.OTP_TTL || "300", 10);
+
+const ATTEMPT_MAX = parseInt(config.OTP_MAX_VERIFY_ATTEMPTS || "5", 10);
 
 /**
  * Creates a secure HMAC hash of the OTP.
@@ -77,4 +79,44 @@ async function generateAndStoreOtp(meta) {
   return { otp, otpSessionId };
 }
 
-export { generateAndStoreOtp };
+async function verifyHashedOtp(otp, otpSessionId) {
+  // Retrieve OTP session data from Redis
+  const sessionData = await redis.get(`otp:session:${otpSessionId}`);
+
+  if(!sessionData) {
+    throw new BadRequestError("Invalid or expired OTP session");
+  }
+
+  const { hashedOtp, meta } = JSON.parse(sessionData);
+
+  //at max a user can verify an OTP 5 times, after which the session is invalidated
+  const verifyCountKey = `otp:attempts:${meta.email}`;
+  const attempts = parseInt((await redis.get(verifyCountKey)) || "0", 10);
+
+
+  // Compare the provided OTP with the stored hash and otp attempts count is less than the max allowed attempts
+  if(attempts >= ATTEMPT_MAX) {
+    throw new TooManyRequestsError("Maximum OTP verification attempts exceeded");
+  }
+
+  const hashedInputOtp = hmacFor(meta.email, otp);
+
+  if(crypto.timingSafeEqual(
+    Buffer.from(hashedInputOtp, "hex"),
+    Buffer.from(hashedOtp, "hex")
+  )){
+    // OTP is valid, delete the session and reset attempts
+    await redis.del(`otp:session:${otpSessionId}`, verifyCountKey);
+    await redis.del(`otp:rate ${meta.email}`);
+    return meta;
+  }else {
+    // Increment the verification attempts count
+    await redis.incr(verifyCountKey);
+    await redis.expire(verifyCountKey, OTP_TTL); // Keep attempts count alive for the same duration as OTP validity
+    throw new BadRequestError("Invalid OTP");
+  }
+
+}
+
+export { generateAndStoreOtp, verifyHashedOtp };
+

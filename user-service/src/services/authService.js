@@ -1,9 +1,10 @@
 import prisma from "../config/prisma.js"
-import {ConflictError} from "../utils/error.js"
-import {sendOtpEmail} from "../utils/email.js"
-import {generateAndStoreOtp} from "../utils/otp.js"
+import {ConflictError, BadRequestError} from "../utils/error.js"
+import {sendOtpEmail, verifyOtpEmail} from "../utils/email.js"
+import {generateAndStoreOtp, verifyHashedOtp} from "../utils/otp.js"
 import crypto from "crypto"
 import bcrypt from "bcryptjs"
+
 export const  generateOtp = async (firstName, lastName, email, password) => {
     
     // Check if a user with this email already exists
@@ -36,5 +37,25 @@ export const  generateOtp = async (firstName, lastName, email, password) => {
     // Return session id so it can be used during OTP verification
     return { otpSessionId };
 };
+
+export const verifyOtp = async(otp, otpSessionId) => {
+    const meta = await verifyHashedOtp(otp, otpSessionId);
+    if(meta === null){
+        throw new BadRequestError("Invalid or expired OTP");
+    }
+    const user = await prisma.user.create({
+        data : {
+            firstName: meta.firstName,
+            lastName: meta.lastName,
+            email: meta.email,
+            password: meta.hashedPassword,
+            emailVerified: true
+
+        }
+    })
+
+    await verifyOtpEmail(meta);
+    return user;
+}
 
  

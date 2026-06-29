@@ -2,7 +2,7 @@
 import {config} from "../config/index.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { BadRequestError } from "../utils/error.js";
-import {generateOtp} from "../services/authService.js";
+import {generateOtp, verifyOtp} from "../services/authService.js";
 export const sendOTP = asyncHandler(async (req, res) => {
 
     // Extract user details from request body
@@ -47,3 +47,22 @@ export const sendOTP = asyncHandler(async (req, res) => {
         message: "OTP sent successfully",
     });
 });
+
+export const verifyOTP = asyncHandler(async (req, res) => {
+    const {otp} = req.body;
+    const otpSessionId = req.cookies.otpSessionId;
+
+    if(!otp || !otpSessionId) {
+        throw new BadRequestError("OTP and session ID are required");
+    }
+
+    const user = await verifyOtp(otp, otpSessionId);
+
+    return res.status(201).json({
+        sucess: true,
+        message: "User registered successfully",
+        data: {
+            user
+        }
+    })
+})
